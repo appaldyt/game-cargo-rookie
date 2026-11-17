@@ -18,7 +18,7 @@ jobs:
         run: |
           TARGET_URL="${WEBHOOK_URL:-$DEFAULT_URL}"
           echo "Mengirim trigger deploy ke Easypanel..."
-          RESPONSE=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" -X POST "$TARGET_URL")
+          RESPONSE=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Content-Type: application/json" -d "{}" "$TARGET_URL")
           echo "$RESPONSE"
           STATUS=$(echo "$RESPONSE" | tr -d '\r' | sed -n 's/^HTTP_STATUS://p')
           if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
