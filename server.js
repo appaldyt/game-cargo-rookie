@@ -89,6 +89,9 @@ function csv(rows) {
   return '﻿' + [head.map(cell).join(','), ...rows.map(r => keys.map(k => cell(r[k])).join(','))].join('\r\n');
 }
 
+process.on('uncaughtException', err => { console.error('Uncaught Exception:', err); process.exit(1); });
+process.on('unhandledRejection', err => { console.error('Unhandled Rejection:', err); });
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const p = url.pathname;
@@ -135,4 +138,4 @@ const server = http.createServer(async (req, res) => {
     return send(res, 400, { ok: false, error: 'Permintaan tidak valid' });
   }
 });
-server.listen(PORT, () => console.log(`Cargo Rookie berjalan di port ${PORT} · data: ${DATA_DIR} · admin: ${ADMIN_PASSWORD ? 'aktif' : 'NONAKTIF (set ADMIN_PASSWORD)'}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`Cargo Rookie berjalan di port ${PORT} · data: ${DATA_DIR} · admin: ${ADMIN_PASSWORD ? 'aktif' : 'NONAKTIF (set ADMIN_PASSWORD)'}`));
