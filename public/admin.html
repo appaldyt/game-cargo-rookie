@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rekap Cargo Rookie</title>
+<style>
+:root{--bg:#10262b;--panel:#173840;--line:#0a1a1d;--ink:#f3ecd8;--mute:#a9c1bf;--yel:#ffd23f;--red:#e4572e}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:24px;margin:0 0 4px;color:var(--yel)}h2{font-size:18px;margin:24px 0 10px}
+.mute{color:var(--mute);font-size:14px}
+.evs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-top:14px}
+.ev{appearance:none;font:inherit;color:inherit;text-align:left;background:var(--panel);border:3px solid var(--line);padding:12px;cursor:pointer}
+.ev.on{border-color:var(--yel)}.ev b{display:block;font-size:17px;color:var(--yel)}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0}
+input{font:inherit;font-size:16px;padding:9px 10px;background:#0c1f23;color:var(--ink);border:3px solid var(--line);min-height:44px;flex:1 1 200px}
+.btn{appearance:none;font:inherit;font-weight:700;border:0;min-height:44px;padding:9px 14px;background:var(--yel);color:#1a1300;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+.btn.alt{background:#22505a;color:var(--ink)}.btn.del{background:transparent;color:#ffb3a0;padding:4px 8px;min-height:32px}
+.btn:focus-visible,input:focus-visible,.ev:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 7px;border-bottom:2px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--mute);font-size:12px;cursor:pointer;white-space:nowrap}
+td.n,th.n{text-align:right;white-space:nowrap}
+.kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kpi div{background:var(--panel);border:3px solid var(--line);padding:10px}.kpi b{display:block;font-size:22px;color:var(--yel)}
+@media(max-width:700px){.kpi{grid-template-columns:repeat(2,minmax(0,1fr))}.stack thead{display:none}.stack tr{display:grid;padding:8px 0;border-bottom:2px solid var(--line)}.stack td{display:flex;justify-content:space-between;gap:12px;border:0;padding:2px 4px;text-align:right}.stack td::before{content:attr(data-l);color:var(--mute);text-align:left}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Rekap Cargo Rookie</h1>
+  <p class="mute">Skor game onboarding IAS, dikelompokkan per kode event.</p>
+  <div class="evs" id="evs"><p class="mute">Memuat event…</p></div>
+  <section id="detail" hidden>
+    <h2 id="evTitle"></h2>
+    <div class="kpi" id="kpi"></div>
+    <div class="bar"><input id="q" placeholder="Cari nama, unit, penempatan…" aria-label="Cari peserta"><a class="btn" id="csv">Unduh CSV</a><button class="btn alt" id="reload">Muat ulang</button></div>
+    <div class="scroll"><table class="stack"><thead><tr id="th"></tr></thead><tbody id="tb"></tbody></table></div>
+  </section>
+</div>
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COLS=[['#','i',1],['Nama','nama'],['NIP','nip'],['Unit','unit'],['Penempatan','penempatan'],['Skor','score',1],['Akurasi','akurasi',1],['Kartu','kartu',1],['Durasi','durasi',1],['Predikat','predikat'],['Waktu','created_at'],['Tentang saya','tentang'],['','del']];
+let EV='',ROWS=[],sortK='score',sortD=-1;
+const wib=s=>{const d=new Date(String(s).replace(' ','T')+'Z');return isNaN(d)?s:d.toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})};
+const dur=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+async function api(u,o){const r=await fetch(u,o);if(!r.ok)throw new Error(r.status);return r.json()}
+async function events(){try{const j=await api('/api/admin/events');
+  $('#evs').innerHTML=j.events.length?j.events.map(e=>`<button class="ev${e.event===EV?' on':''}" data-e="${esc(e.event)}"><b>${esc(e.event)}</b>${e.peserta} peserta · rata-rata skor ${e.rata_skor} · akurasi ${e.rata_akurasi}%<br><span class="mute">Terakhir: ${esc(wib(e.terakhir))}</span></button>`).join(''):'<p class="mute">Belum ada skor masuk.</p>';
+  document.querySelectorAll('.ev').forEach(b=>b.onclick=()=>open(b.dataset.e))}catch(e){$('#evs').innerHTML='<p class="mute">Gagal memuat. Muat ulang halaman.</p>'}}
+async function open(ev){EV=ev;events();$('#detail').hidden=false;$('#evTitle').textContent='Event '+ev;$('#csv').href='/api/admin/export.csv?event='+encodeURIComponent(ev);
+  const j=await api('/api/admin/scores?event='+encodeURIComponent(ev));ROWS=j.rows;render()}
+function render(){const q=$('#q').value.toLowerCase();
+  let r=ROWS.filter(x=>!q||[x.nama,x.unit,x.penempatan,x.nip].join(' ').toLowerCase().includes(q));
+  r=r.slice().sort((a,b)=>{const A=a[sortK],B=b[sortK];return (typeof A==='number'?A-B:String(A).localeCompare(String(B)))*sortD});
+  const n=ROWS.length,avg=k=>n?Math.round(ROWS.reduce((s,x)=>s+x[k],0)/n):0;
+  $('#kpi').innerHTML=`<div><b>${n}</b>Peserta</div><div><b>${avg('score')}</b>Rata-rata skor</div><div><b>${avg('akurasi')}%</b>Rata-rata akurasi</div><div><b>${dur(avg('durasi'))}</b>Rata-rata durasi</div>`;
+  $('#th').innerHTML=COLS.map(([l,k,num])=>`<th class="${num?'n':''}" data-k="${k}">${l}${k===sortK?(sortD<0?' ▼':' ▲'):''}</th>`).join('');
+  document.querySelectorAll('#th th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(k==='i'||k==='del')return;sortD=k===sortK?-sortD:-1;sortK=k;render()});
+  $('#tb').innerHTML=r.map((x,i)=>'<tr>'+COLS.map(([l,k,num])=>{let v=k==='i'?i+1:k==='durasi'?dur(x.durasi):k==='akurasi'?x.akurasi+'%':k==='created_at'?wib(x.created_at):x[k];
+    if(k==='del')return `<td><button class="btn del" data-id="${esc(x.id)}">Hapus</button></td>`;return `<td class="${num?'n':''}" data-l="${l}">${esc(v)}</td>`}).join('')+'</tr>').join('')||'<tr><td>Tidak ada data.</td></tr>';
+  document.querySelectorAll('.del').forEach(b=>b.onclick=async()=>{if(b.dataset.armed){await api('/api/admin/scores/'+b.dataset.id,{method:'DELETE'});open(EV)}else{b.dataset.armed=1;b.textContent='Yakin hapus?'}})}
+$('#q').oninput=render;$('#reload').onclick=()=>open(EV);
+events();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "cargo-rookie-ias",
+  "version": "1.0.0",
+  "description": "Game onboarding 3D IAS - gudang kargo",
+  "type": "module",
+  "main": "server.js",
+  "scripts": { "start": "node --no-warnings server.js" },
+  "engines": { "node": ">=22.5" },
+  "dependencies": { "three": "0.170.0" }
+}
