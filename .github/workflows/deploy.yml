@@ -1,0 +1,29 @@
+name: Deploy to Easypanel
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Trigger Easypanel Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Deploy Webhook
+        env:
+          WEBHOOK_URL: ${{ secrets.EASYPANEL_WEBHOOK_URL }}
+          DEFAULT_URL: "http://43.153.211.79:3000/api/deploy/9833e0005038cf09e66e56a90b13aba439cba21902e06e98"
+        run: |
+          TARGET_URL="${WEBHOOK_URL:-$DEFAULT_URL}"
+          echo "Mengirim trigger deploy ke Easypanel..."
+          RESPONSE=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" -X POST "$TARGET_URL")
+          echo "$RESPONSE"
+          STATUS=$(echo "$RESPONSE" | tr -d '\r' | sed -n 's/^HTTP_STATUS://p')
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "Deploy trigger berhasil dikirim (Status: $STATUS)!"
+          else
+            echo "Gagal mengirim deploy trigger (Status: $STATUS)"
+            exit 1
+          fi
