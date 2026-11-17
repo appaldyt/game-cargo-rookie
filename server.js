@@ -7,6 +7,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
+process.on('uncaughtException', err => { console.error('FATAL Uncaught Exception:', err); process.exit(1); });
+process.on('unhandledRejection', err => { console.error('Unhandled Rejection:', err); });
+
 const PORT = Number(process.env.PORT || 3000);
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -14,18 +17,24 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const PUBLIC = path.join(ROOT, 'public');
 const VENDOR = { '/vendor/three.module.min.js': path.join(ROOT, 'node_modules/three/build/three.module.min.js') };
 
-fs.mkdirSync(DATA_DIR, { recursive: true });
-const db = new DatabaseSync(path.join(DATA_DIR, 'cargo-rookie.db'));
-db.exec(`
-PRAGMA journal_mode = WAL;
-CREATE TABLE IF NOT EXISTS scores (
-  id TEXT PRIMARY KEY, event TEXT NOT NULL, nama TEXT NOT NULL, nip TEXT, unit TEXT, jabatan TEXT,
-  penempatan TEXT, tentang TEXT, score INTEGER, benar INTEGER, total INTEGER, akurasi INTEGER,
-  z_briefing INTEGER, z_sortir INTEGER, z_direksi INTEGER, z_dispatch INTEGER, kartu INTEGER,
-  durasi INTEGER, predikat TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_scores_event ON scores(event, score DESC);
-`);
+let db;
+try {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  db = new DatabaseSync(path.join(DATA_DIR, 'cargo-rookie.db'));
+  db.exec(`
+  PRAGMA journal_mode = WAL;
+  CREATE TABLE IF NOT EXISTS scores (
+    id TEXT PRIMARY KEY, event TEXT NOT NULL, nama TEXT NOT NULL, nip TEXT, unit TEXT, jabatan TEXT,
+    penempatan TEXT, tentang TEXT, score INTEGER, benar INTEGER, total INTEGER, akurasi INTEGER,
+    z_briefing INTEGER, z_sortir INTEGER, z_direksi INTEGER, z_dispatch INTEGER, kartu INTEGER,
+    durasi INTEGER, predikat TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_scores_event ON scores(event, score DESC);
+  `);
+} catch (err) {
+  console.error(`FATAL: Gagal inisialisasi database di ${DATA_DIR}:`, err);
+  process.exit(1);
+}
 
 const COLS = ['id', 'event', 'nama', 'nip', 'unit', 'jabatan', 'penempatan', 'tentang', 'score', 'benar', 'total',
   'akurasi', 'z_briefing', 'z_sortir', 'z_direksi', 'z_dispatch', 'kartu', 'durasi', 'predikat'];
@@ -89,8 +98,6 @@ function csv(rows) {
   return '﻿' + [head.map(cell).join(','), ...rows.map(r => keys.map(k => cell(r[k])).join(','))].join('\r\n');
 }
 
-process.on('uncaughtException', err => { console.error('Uncaught Exception:', err); process.exit(1); });
-process.on('unhandledRejection', err => { console.error('Unhandled Rejection:', err); });
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
